@@ -6,6 +6,12 @@
     <title>Markdown & Mermaid 即時編輯器</title>
     <!-- 引入 Tailwind CSS 與 Typography 插件來美化 Markdown 排版 -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <!-- 設定 Tailwind 啟用 Class 基礎的深色模式 -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <!-- 引入 Marked.js 用於解析 Markdown -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- 自訂一些基本樣式 -->
@@ -25,12 +31,23 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8; 
         }
+        
+        /* 深色模式滾動條 */
+        .dark ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569; 
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
     </style>
 </head>
-<body class="bg-slate-50 h-screen flex flex-col font-sans text-slate-800 overflow-hidden">
+<body class="bg-slate-50 dark:bg-slate-900 h-screen flex flex-col font-sans text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-200">
 
     <!-- 頂部導覽列 -->
-    <header class="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex justify-between items-center z-10">
+    <header class="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex justify-between items-center z-10 transition-colors duration-200">
         <div class="flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -39,35 +56,59 @@
                 <line x1="16" y1="17" x2="8" y2="17"></line>
                 <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            <h1 class="text-xl font-bold text-slate-800">Markdown & Mermaid 編輯器</h1>
+            <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 transition-colors duration-200">Markdown & Mermaid 編輯器</h1>
         </div>
-        <div class="text-sm text-slate-500 hidden sm:block">
-            支援標準 Markdown 與 Mermaid 圖表語法
+        <div class="flex items-center gap-4">
+            <div class="text-sm text-slate-500 dark:text-slate-400 hidden sm:block transition-colors duration-200">
+                支援標準 Markdown 與 Mermaid 圖表語法
+            </div>
+            <!-- 白天/黑夜模式切換按鈕 -->
+            <button id="themeToggleBtn" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors" title="切換深色模式">
+                <svg id="moonIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg id="sunIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
         </div>
     </header>
 
     <!-- 主要工作區 -->
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+    <main id="main-container" class="flex-1 flex flex-col md:flex-row overflow-hidden">
         
         <!-- 左側：編輯器區塊 -->
-        <section class="w-full md:w-1/2 flex flex-col border-r border-slate-200 bg-white">
-            <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center text-sm font-semibold text-slate-600">
+        <section id="editor-pane" class="w-full md:w-1/2 flex flex-col bg-white dark:bg-slate-800 flex-shrink-0 transition-colors duration-200">
+            <div class="bg-slate-100 dark:bg-slate-800 px-4 py-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors duration-200">
                 <span>📝 Markdown 編輯區</span>
                 <button id="clearBtn" class="text-slate-400 hover:text-red-500 transition-colors" title="清空內容">
                     清除
                 </button>
             </div>
-            <textarea id="editor" class="flex-1 w-full p-6 resize-none outline-none focus:ring-inset focus:ring-2 focus:ring-indigo-500 font-mono text-sm leading-relaxed bg-white text-slate-700" spellcheck="false"></textarea>
+            <textarea id="editor" class="flex-1 w-full p-6 resize-none outline-none focus:ring-inset focus:ring-2 focus:ring-indigo-500 font-mono text-sm leading-relaxed bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 transition-colors duration-200" spellcheck="false"></textarea>
         </section>
 
+        <!-- 拖曳分隔線 (僅在電腦版顯示) -->
+        <div id="resizer" class="hidden md:flex w-2 bg-slate-200 dark:bg-slate-700 hover:bg-indigo-300 dark:hover:bg-indigo-500 cursor-col-resize items-center justify-center transition-colors flex-shrink-0 z-20 group" title="左右拖曳調整比例">
+            <div class="w-1 h-8 bg-slate-400 dark:bg-slate-500 rounded-full group-hover:bg-indigo-500 transition-colors"></div>
+        </div>
+
         <!-- 右側：預覽區塊 -->
-        <section class="w-full md:w-1/2 flex flex-col bg-slate-50">
-            <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 text-sm font-semibold text-slate-600">
+        <section id="preview-pane" class="w-full md:flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden transition-colors duration-200">
+            <div class="bg-slate-100 dark:bg-slate-800 px-4 py-2 border-b border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors duration-200">
                 <span>👁️ 即時預覽</span>
             </div>
             <div class="flex-1 overflow-y-auto p-6 md:p-8">
                 <!-- 使用 Tailwind Typography (prose) 來自動美化 Markdown 的 HTML 輸出 -->
-                <div id="preview" class="prose prose-slate prose-indigo max-w-none">
+                <div id="preview" class="prose prose-slate dark:prose-invert prose-indigo max-w-none transition-colors duration-200">
                     <!-- 渲染結果將顯示於此 -->
                 </div>
             </div>
@@ -79,18 +120,92 @@
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
         
-        // 初始化 Mermaid 設定
-        mermaid.initialize({ 
-            startOnLoad: false, 
-            theme: 'default',
-            securityLevel: 'loose',
-            fontFamily: 'inherit'
-        });
-
         // 取得 DOM 元素
         const editor = document.getElementById('editor');
         const preview = document.getElementById('preview');
         const clearBtn = document.getElementById('clearBtn');
+        const resizer = document.getElementById('resizer');
+        const editorPane = document.getElementById('editor-pane');
+        const mainContainer = document.getElementById('main-container');
+
+        // --- 白天與黑夜模式邏輯 ---
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        
+        // 檢查本地儲存的偏好，或是系統偏好
+        let isDarkMode = localStorage.getItem('theme') === 'dark' || 
+            (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+        // 更新主題與 Mermaid 狀態
+        function updateTheme(initial = false) {
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            }
+            
+            // 設定 Mermaid 主題
+            mermaid.initialize({ 
+                startOnLoad: false, 
+                theme: isDarkMode ? 'dark' : 'default',
+                securityLevel: 'loose',
+                fontFamily: 'inherit'
+            });
+
+            // 若非初始載入，則觸發重新渲染以套用新圖表顏色
+            if (!initial && typeof renderContent === 'function') {
+                renderContent();
+            }
+        }
+
+        // 綁定切換按鈕事件
+        themeToggleBtn.addEventListener('click', () => {
+            isDarkMode = !isDarkMode;
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+            updateTheme();
+        });
+
+        // 初始設定主題
+        updateTheme(true);
+
+        // --- 拖曳調整畫面比例功能 ---
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none'; // 避免拖曳時選取到文字
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            // 取得主容器的寬度與位置
+            const containerRect = mainContainer.getBoundingClientRect();
+            // 計算滑鼠相對位置的百分比
+            let newWidthPercent = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+            
+            // 限制左右兩側最小寬度為 20% 與最大寬度為 80%
+            if (newWidthPercent < 20) newWidthPercent = 20;
+            if (newWidthPercent > 80) newWidthPercent = 80;
+            
+            // 設定左側寬度，右側透過 flex-1 自動填滿剩餘空間
+            editorPane.style.width = `${newWidthPercent}%`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+        // ---------------------------
 
         // 預設的 Markdown 與 Mermaid 範例內容
         const defaultContent = `# 歡迎使用 Markdown & Mermaid 工具 🚀
@@ -161,7 +276,7 @@ pie title 週末時間分配
                 // 建立一個外層容器，用來放置圖表與工具列
                 const mermaidContainer = document.createElement('div');
                 // 使用 Tailwind 設定外框、hover 效果、相對定位 (給懸浮工具列使用)
-                mermaidContainer.className = 'group relative my-6 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-colors pt-10 pb-4 px-4';
+                mermaidContainer.className = 'group relative my-6 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors pt-10 pb-4 px-4';
                 
                 // 建立新的 div 元素來讓 Mermaid 處理
                 const mermaidDiv = document.createElement('div');
@@ -196,12 +311,27 @@ pie title 週末時間分配
                         svg.style.height = 'auto'; // 保持長寬比例
                         svg.style.transition = 'width 0.2s ease';
 
+                        // 🖱️ 加入滑鼠滾輪縮放功能
+                        svg.addEventListener('wheel', (e) => {
+                            e.preventDefault(); // 防止網頁跟著上下捲動
+                            
+                            // e.deltaY < 0 表示滾輪向上滾（放大），反之則縮小
+                            // 這裡設定每次滾動縮放比例為 10% (1.1)
+                            if (e.deltaY < 0) {
+                                currentWidth *= 1.1; 
+                            } else {
+                                currentWidth /= 1.1;
+                            }
+                            
+                            svg.style.width = `${currentWidth}px`;
+                        }, { passive: false }); // passive: false 允許呼叫 preventDefault()
+
                         // 建立懸浮工具列
                         const toolbar = document.createElement('div');
-                        toolbar.className = 'absolute top-2 right-2 flex gap-1 bg-white shadow-sm border border-slate-200 rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10';
+                        toolbar.className = 'absolute top-2 right-2 flex gap-1 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10';
                         
                         // 工具列按鈕的共用樣式
-                        const btnClass = 'p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded transition-colors';
+                        const btnClass = 'p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors';
 
                         // 🔍 放大按鈕
                         const zoomInBtn = document.createElement('button');
