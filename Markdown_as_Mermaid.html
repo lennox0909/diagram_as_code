@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown & Mermaid 即時編輯器</title>
+    <!-- 引入 Tailwind CSS 與 Typography 插件來美化 Markdown 排版 -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <!-- 引入 Marked.js 用於解析 Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 自訂一些基本樣式 -->
+    <style>
+        /* 自訂滾動條樣式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen flex flex-col font-sans text-slate-800 overflow-hidden">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white shadow-sm border-b border-slate-200 px-6 py-4 flex justify-between items-center z-10">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <h1 class="text-xl font-bold text-slate-800">Markdown & Mermaid 編輯器</h1>
+        </div>
+        <div class="text-sm text-slate-500 hidden sm:block">
+            支援標準 Markdown 與 Mermaid 圖表語法
+        </div>
+    </header>
+
+    <!-- 主要工作區 -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- 左側：編輯器區塊 -->
+        <section class="w-full md:w-1/2 flex flex-col border-r border-slate-200 bg-white">
+            <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center text-sm font-semibold text-slate-600">
+                <span>📝 Markdown 編輯區</span>
+                <button id="clearBtn" class="text-slate-400 hover:text-red-500 transition-colors" title="清空內容">
+                    清除
+                </button>
+            </div>
+            <textarea id="editor" class="flex-1 w-full p-6 resize-none outline-none focus:ring-inset focus:ring-2 focus:ring-indigo-500 font-mono text-sm leading-relaxed bg-white text-slate-700" spellcheck="false"></textarea>
+        </section>
+
+        <!-- 右側：預覽區塊 -->
+        <section class="w-full md:w-1/2 flex flex-col bg-slate-50">
+            <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 text-sm font-semibold text-slate-600">
+                <span>👁️ 即時預覽</span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 md:p-8">
+                <!-- 使用 Tailwind Typography (prose) 來自動美化 Markdown 的 HTML 輸出 -->
+                <div id="preview" class="prose prose-slate prose-indigo max-w-none">
+                    <!-- 渲染結果將顯示於此 -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 載入 Mermaid (使用 ES Module 方式) -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        
+        // 初始化 Mermaid 設定
+        mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: 'default',
+            securityLevel: 'loose',
+            fontFamily: 'inherit'
+        });
+
+        // 取得 DOM 元素
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // 預設的 Markdown 與 Mermaid 範例內容
+        const defaultContent = `# 歡迎使用 Markdown & Mermaid 工具 🚀
+
+這是一個即時編輯器，可以將您的 Markdown 內容與 Mermaid 圖表程式碼轉換為視覺化的畫面。
+
+## 1. 流程圖範例 (Flowchart)
+
+只要使用 \`\`\`mermaid 區塊，就能自動渲染成圖表：
+
+\`\`\`mermaid
+graph TD;
+    A[輸入 Markdown] --> B{解析器處理};
+    B -->|發現 Mermaid| C[呼叫 Mermaid.js];
+    B -->|一般文字| D[轉為 HTML 顯示];
+    C --> E[呈現精美圖表 🎨];
+    D --> E;
+\`\`\`
+
+## 2. 循序圖範例 (Sequence Diagram)
+
+用來表達系統之間的互動也非常方便：
+
+\`\`\`mermaid
+sequenceDiagram
+    autonumber
+    participant U as 使用者
+    participant E as 編輯器 (左側)
+    participant P as 預覽區 (右側)
+
+    U->>E: 輸入 Markdown 語法
+    E->>E: 等待 300 毫秒 (防抖動)
+    E->>P: 解析並更新 DOM
+    P-->>U: 顯示渲染結果
+\`\`\`
+
+## 3. 圓餅圖範例 (Pie Chart)
+
+\`\`\`mermaid
+pie title 週末時間分配
+    "寫程式" : 40
+    "玩遊戲" : 20
+    "睡覺" : 25
+    "出外踏青" : 15
+\`\`\`
+
+---
+*提示：您可以試著修改左側的程式碼，右側會即時更新喔！*`;
+
+        // 將預設內容填入編輯器
+        editor.value = defaultContent;
+
+        // 負責將 Markdown 轉為 HTML 並渲染 Mermaid 圖表的函數
+        async function renderContent() {
+            const markdownText = editor.value;
+            
+            // 1. 使用 Marked.js 將 Markdown 轉換為 HTML
+            preview.innerHTML = marked.parse(markdownText);
+
+            // 2. 找出所有被標記為 language-mermaid 的 code 區塊
+            const mermaidCodeBlocks = preview.querySelectorAll('code.language-mermaid');
+            
+            // 3. 將這些 code 區塊轉換為帶有外框與工具列空間的容器
+            mermaidCodeBlocks.forEach(block => {
+                // 取得外層的 <pre> 標籤
+                const preElement = block.parentElement; 
+                
+                // 建立一個外層容器，用來放置圖表與工具列
+                const mermaidContainer = document.createElement('div');
+                // 使用 Tailwind 設定外框、hover 效果、相對定位 (給懸浮工具列使用)
+                mermaidContainer.className = 'group relative my-6 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-colors pt-10 pb-4 px-4';
+                
+                // 建立新的 div 元素來讓 Mermaid 處理
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid overflow-x-auto flex justify-center w-full';
+                mermaidDiv.textContent = block.textContent; 
+                
+                mermaidContainer.appendChild(mermaidDiv);
+                
+                // 將 <pre> 替換為我們的新結構
+                preElement.replaceWith(mermaidContainer);
+            });
+
+            // 4. 呼叫 Mermaid 進行渲染
+            try {
+                // 找出所有 class 為 mermaid 的節點並進行渲染
+                const nodesToRender = document.querySelectorAll('.mermaid');
+                if (nodesToRender.length > 0) {
+                    await mermaid.run({ nodes: nodesToRender });
+                    
+                    // 5. 渲染完成後，為每個圖表加入放大、縮小、下載工具列
+                    document.querySelectorAll('.group.relative').forEach((container, index) => {
+                        const svg = container.querySelector('svg');
+                        if (!svg) return;
+
+                        // 取得 SVG 初始渲染的寬度，做為後續縮放基準
+                        const initialWidth = svg.getBoundingClientRect().width || 500;
+                        let currentWidth = initialWidth;
+                        
+                        // 移除 Mermaid 預設的最大寬度，改用明確寬度以利自訂縮放
+                        svg.style.maxWidth = 'none';
+                        svg.style.width = `${currentWidth}px`;
+                        svg.style.height = 'auto'; // 保持長寬比例
+                        svg.style.transition = 'width 0.2s ease';
+
+                        // 建立懸浮工具列
+                        const toolbar = document.createElement('div');
+                        toolbar.className = 'absolute top-2 right-2 flex gap-1 bg-white shadow-sm border border-slate-200 rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10';
+                        
+                        // 工具列按鈕的共用樣式
+                        const btnClass = 'p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded transition-colors';
+
+                        // 🔍 放大按鈕
+                        const zoomInBtn = document.createElement('button');
+                        zoomInBtn.className = btnClass;
+                        zoomInBtn.title = '放大';
+                        zoomInBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+                        zoomInBtn.onclick = () => {
+                            currentWidth *= 1.25; // 每次放大 25%
+                            svg.style.width = `${currentWidth}px`;
+                        };
+
+                        // 🔍 縮小按鈕
+                        const zoomOutBtn = document.createElement('button');
+                        zoomOutBtn.className = btnClass;
+                        zoomOutBtn.title = '縮小';
+                        zoomOutBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+                        zoomOutBtn.onclick = () => {
+                            currentWidth /= 1.25; // 每次縮小約 20%
+                            svg.style.width = `${currentWidth}px`;
+                        };
+
+                        // 💾 下載 SVG 按鈕
+                        const downloadBtn = document.createElement('button');
+                        downloadBtn.className = btnClass;
+                        downloadBtn.title = '下載 SVG';
+                        downloadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+                        downloadBtn.onclick = () => {
+                            // 複製一份 SVG 準備輸出
+                            const cloneSvg = svg.cloneNode(true);
+                            // 重設寬高為 100%，確保下載的 SVG 圖片具有彈性響應式大小
+                            cloneSvg.style.width = '100%';
+                            cloneSvg.style.height = '100%';
+                            
+                            // 將 SVG 轉換為文字格式
+                            const svgData = new XMLSerializer().serializeToString(cloneSvg);
+                            const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+                            const blob = new Blob([preface, svgData], { type: 'image/svg+xml;charset=utf-8' });
+                            const url = URL.createObjectURL(blob);
+                            
+                            // 動態建立超連結以觸發下載
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `mermaid-chart-${index + 1}.svg`;
+                            document.body.appendChild(a);
+                            a.click();
+                            
+                            // 清理資源
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        };
+
+                        // 將按鈕加入工具列
+                        toolbar.appendChild(zoomInBtn);
+                        toolbar.appendChild(zoomOutBtn);
+                        toolbar.appendChild(downloadBtn);
+                        
+                        // 將工具列加入圖表容器
+                        container.appendChild(toolbar);
+                    });
+                }
+            } catch (error) {
+                // Mermaid 在遇到語法錯誤時會自動在畫面上顯示錯誤訊息，
+                // 這裡捕獲錯誤是為了避免中斷後續的 JavaScript 執行。
+                console.error("Mermaid 渲染失敗:", error);
+            }
+        }
+
+        // 防抖動 (Debounce) 機制：避免使用者每打一個字就渲染一次，造成效能問題
+        let renderTimeout;
+        editor.addEventListener('input', () => {
+            clearTimeout(renderTimeout);
+            // 停止輸入後 300 毫秒才執行渲染
+            renderTimeout = setTimeout(renderContent, 300);
+        });
+
+        // 清除按鈕功能
+        clearBtn.addEventListener('click', () => {
+            if (confirm('確定要清空所有內容嗎？')) {
+                editor.value = '';
+                renderContent();
+                editor.focus();
+            }
+        });
+
+        // 初始載入時先渲染一次
+        renderContent();
+    </script>
+</body>
+</html>
