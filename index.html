@@ -207,7 +207,7 @@
         });
         // ---------------------------
 
-        // 預設的 Markdown 與 Mermaid 範例內容 (依照使用者要求更新，並修復了不可見空白及語法錯誤)
+        // 預設的 Markdown 與 Mermaid 範例內容 (依照使用者要求更新，並確保無隱藏的全形/不中斷空白)
         const defaultContent = `# 歡迎使用 VGHTPE-HR Markdown & Mermaid 工具 🚀
 **by Leno Tsai**
 
@@ -228,11 +228,11 @@ graph TD
 \`\`\`mermaid
 sequenceDiagram
     participant 貴貴
-    participant Huei
-    貴貴 ->>+ Huei: Hello Huei, how are you?
-    貴貴 ->> Huei: Huei, can you hear me?
-    Huei -->> 貴貴: Hi 貴貴, I can hear you!
-    Huei -->>- 貴貴: I feel great!
+    participant 慧慧
+    貴貴 ->>+ 慧慧: Hello 慧慧, how are you?
+    貴貴 ->> 慧慧: 慧慧, can you hear me?
+    慧慧 -->> 貴貴: Hi 貴貴, I can hear you!
+    慧慧 -->>- 貴貴: I feel great!
 \`\`\`
 
 ## 3. 類別圖 (Class Diagram)
@@ -479,7 +479,9 @@ kanban
 
         // 負責將 Markdown 轉為 HTML 並渲染 Mermaid 圖表的函數
         async function renderContent() {
-            const markdownText = editor.value;
+            // 自動清理可能導致 Mermaid 排版引擎崩潰的不中斷空白 (NBSP, \u00A0)
+            // 將其替換為標準空白，從根本解決 "Could not find a suitable point for the given distance" 錯誤
+            const markdownText = editor.value.replace(/\u00A0/g, ' ');
             
             // 1. 使用 Marked.js 將 Markdown 轉換為 HTML
             preview.innerHTML = marked.parse(markdownText);
