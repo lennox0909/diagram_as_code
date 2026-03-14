@@ -530,21 +530,6 @@ kanban
                         svg.style.height = 'auto'; // 保持長寬比例
                         svg.style.transition = 'width 0.2s ease';
 
-                        // 🖱️ 加入滑鼠滾輪縮放功能
-                        svg.addEventListener('wheel', (e) => {
-                            e.preventDefault(); // 防止網頁跟著上下捲動
-                            
-                            // e.deltaY < 0 表示滾輪向上滾（放大），反之則縮小
-                            // 這裡設定每次滾動縮放比例為 10% (1.1)
-                            if (e.deltaY < 0) {
-                                currentWidth *= 1.1; 
-                            } else {
-                                currentWidth /= 1.1;
-                            }
-                            
-                            svg.style.width = `${currentWidth}px`;
-                        }, { passive: false }); // passive: false 允許呼叫 preventDefault()
-
                         // 建立懸浮工具列
                         const toolbar = document.createElement('div');
                         toolbar.className = 'absolute top-2 right-2 flex gap-1 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10';
