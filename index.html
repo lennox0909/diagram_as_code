@@ -207,8 +207,9 @@
         });
         // ---------------------------
 
-        // 預設的 Markdown 與 Mermaid 範例內容 (移除需要外部套件的 ZenUML，共 20 種)
-        const defaultContent = `# 歡迎使用 Markdown & Mermaid 工具 🚀
+        // 預設的 Markdown 與 Mermaid 範例內容 (依照使用者要求更新，並修復了不可見空白及語法錯誤)
+        const defaultContent = `# 歡迎使用 VGHTPE-HR Markdown & Mermaid 工具 🚀
+**by Leno Tsai**
 
 這是一個即時編輯器，可以將您的 Markdown 內容與 Mermaid 圖表程式碼轉換為視覺化的畫面。
 以下完整收錄了 Mermaid 官方內建支援的 **20 種各式圖表範例**：
@@ -216,20 +217,22 @@
 ## 1. 流程圖 (Flowchart)
 \`\`\`mermaid
 graph TD
-    A[Christmas] -->|Get money| B(Go shopping)
-    B --> C{Let me think}
-    C -->|One| D[Laptop]
-    C -->|Two| E[iPhone]
-    C -->|Three| F[fa:fa-car Car]
+    A[人事室] -->|處理加班費| B(差勤系統)
+    B --> C{人工列印憑證}
+    C -->|孝彰| D[進系統手動申報]
+    C -->|佳怡| E[手動查核、電話訪談]
+    C -->|勤| F[手動查核]
 \`\`\`
 
 ## 2. 循序圖 (Sequence Diagram)
 \`\`\`mermaid
 sequenceDiagram
-    Alice->>+John: Hello John, how are you?
-    Alice->>+John: John, can you hear me?
-    John-->>-Alice: Hi Alice, I can hear you!
-    John-->>-Alice: I feel great!
+    participant 貴貴
+    participant Huei
+    貴貴 ->>+ Huei: Hello Huei, how are you?
+    貴貴 ->> Huei: Huei, can you hear me?
+    Huei -->> 貴貴: Hi 貴貴, I can hear you!
+    Huei -->>- 貴貴: I feel great!
 \`\`\`
 
 ## 3. 類別圖 (Class Diagram)
@@ -281,12 +284,12 @@ erDiagram
 journey
     title My working day
     section Go to work
-      Make tea: 5: Me
-      Go upstairs: 3: Me
-      Do work: 1: Me, Cat
+      Make tea: 5: Leno
+      Go upstairs: 3: Leno
+      Do work: 1: Leno, 貴貴
     section Go home
-      Go downstairs: 5: Me
-      Sit down: 5: Me
+      Go downstairs: 5: Leno
+      Sit down: 5: Leno
 \`\`\`
 
 ## 7. 甘特圖 (Gantt Chart)
@@ -299,7 +302,7 @@ gantt
     Another task     :after a1  , 20d
     section Another
     Task in sec      :2014-01-12  , 12d
-    another task      : 24d
+    another task     : 24d
 \`\`\`
 
 ## 8. 圓餅圖 (Pie Chart)
