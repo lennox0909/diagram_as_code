@@ -96,7 +96,10 @@
         <!-- 左側：編輯器區塊 -->
         <section id="editor-pane" class="w-full md:w-1/2 flex flex-col bg-white dark:bg-slate-800 flex-shrink-0 transition-colors duration-200">
             <div class="bg-slate-100 dark:bg-slate-800 px-4 py-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center text-sm font-semibold text-slate-600 dark:text-slate-300 transition-colors duration-200">
-                <span>📝 Markdown 編輯區</span>
+                <div class="flex items-center gap-2">
+                    <span>📝 Markdown 編輯區</span>
+                    <span id="save-status" class="text-xs text-emerald-600 font-normal opacity-0 transition-opacity duration-300">已自動儲存</span>
+                </div>
                 <button id="clearBtn" class="text-slate-400 hover:text-red-500 transition-colors" title="清空內容">
                     清除
                 </button>
@@ -104,7 +107,7 @@
             <textarea id="editor" class="flex-1 w-full p-6 resize-none outline-none focus:ring-inset focus:ring-2 focus:ring-indigo-500 font-mono text-sm leading-relaxed bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 transition-colors duration-200" spellcheck="false"></textarea>
         </section>
 
-        <!-- 拖曳分隔線 (僅在電腦版顯示，加入 touch-none 防止滑動手勢干擾) -->
+        <!-- 拖曳分隔線 (僅在電腦版顯示) -->
         <div id="resizer" class="hidden md:flex w-2 bg-slate-200 dark:bg-slate-700 hover:bg-indigo-300 dark:hover:bg-indigo-500 cursor-col-resize items-center justify-center transition-colors flex-shrink-0 z-20 group touch-none" title="左右拖曳調整比例">
             <div class="w-1 h-8 bg-slate-400 dark:bg-slate-500 rounded-full group-hover:bg-indigo-500 transition-colors"></div>
         </div>
@@ -115,7 +118,6 @@
                 <span>👁️ 即時預覽</span>
             </div>
             <div class="flex-1 overflow-y-auto p-6 md:p-8">
-                <!-- 使用 Tailwind Typography (prose) 來自動美化 Markdown 的 HTML 輸出 -->
                 <div id="preview" class="prose prose-slate dark:prose-invert prose-indigo max-w-none transition-colors duration-200">
                     <!-- 渲染結果將顯示於此 -->
                 </div>
@@ -124,7 +126,7 @@
 
     </main>
 
-    <!-- 載入 Mermaid (更新至最新 v11，以支援 Kanban, Architecture, Packet 等最新圖表) -->
+    <!-- 載入 Mermaid -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
         
@@ -135,17 +137,18 @@
         const resizer = document.getElementById('resizer');
         const editorPane = document.getElementById('editor-pane');
         const mainContainer = document.getElementById('main-container');
+        const saveStatus = document.getElementById('save-status');
+
+        const STORAGE_KEY = 'vghtpe_mermaid_editor_content';
 
         // --- 白天與黑夜模式邏輯 ---
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         const sunIcon = document.getElementById('sunIcon');
         const moonIcon = document.getElementById('moonIcon');
         
-        // 檢查本地儲存的偏好，或是系統偏好
         let isDarkMode = localStorage.getItem('theme') === 'dark' || 
             (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-        // 更新主題與 Mermaid 狀態
         function updateTheme(initial = false) {
             if (isDarkMode) {
                 document.documentElement.classList.add('dark');
@@ -157,7 +160,6 @@
                 moonIcon.classList.remove('hidden');
             }
             
-            // 設定 Mermaid 主題
             mermaid.initialize({ 
                 startOnLoad: false, 
                 theme: isDarkMode ? 'dark' : 'default',
@@ -165,59 +167,43 @@
                 fontFamily: 'inherit'
             });
 
-            // 若非初始載入，則觸發重新渲染以套用新圖表顏色
-            if (!initial && typeof renderContent === 'function') {
+            if (!initial) {
                 renderContent();
             }
         }
 
-        // 綁定切換按鈕事件
         themeToggleBtn.addEventListener('click', () => {
             isDarkMode = !isDarkMode;
             localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
             updateTheme();
         });
 
-        // 初始設定主題
         updateTheme(true);
 
-        // --- 拖曳調整畫面比例功能 (支援滑鼠與觸控) ---
+        // --- 拖曳調整畫面比例 ---
         let isResizing = false;
 
-        // 滑鼠開始事件
         resizer.addEventListener('mousedown', (e) => {
             isResizing = true;
             document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none'; // 避免拖曳時選取到文字
+            document.body.style.userSelect = 'none';
         });
 
-        // 觸控開始事件
         resizer.addEventListener('touchstart', (e) => {
             isResizing = true;
             document.body.style.userSelect = 'none';
         }, { passive: false });
 
-        // 共用的拖曳處理邏輯
         function handleMove(e) {
             if (!isResizing) return;
-            
-            // 判斷是觸控還是滑鼠事件，取得 X 座標
             const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-            
-            // 取得主容器的寬度與位置
             const containerRect = mainContainer.getBoundingClientRect();
-            // 計算滑鼠/手指相對位置的百分比
             let newWidthPercent = ((clientX - containerRect.left) / containerRect.width) * 100;
-            
-            // 限制左右兩側最小寬度為 20% 與最大寬度為 80%
             if (newWidthPercent < 20) newWidthPercent = 20;
             if (newWidthPercent > 80) newWidthPercent = 80;
-            
-            // 設定左側寬度，右側透過 flex-1 自動填滿剩餘空間
             editorPane.style.width = `${newWidthPercent}%`;
         }
 
-        // 共用的停止拖曳邏輯
         function stopResize() {
             if (isResizing) {
                 isResizing = false;
@@ -230,16 +216,14 @@
         document.addEventListener('touchmove', handleMove, { passive: false });
         document.addEventListener('mouseup', stopResize);
         document.addEventListener('touchend', stopResize);
-        // ---------------------------
 
-        // 預設的 Markdown 與 Mermaid 範例內容
+        // --- 預設內容 ---
         const defaultContent = `# 歡迎使用 VGHTPE-HR Markdown & Mermaid 工具 🚀
 **by Leno Tsai**
 
 這是一個即時編輯器，可以將您的 Markdown 內容與 Mermaid 圖表程式碼轉換為視覺化的畫面。
-以下完整收錄了 Mermaid 官方內建支援的 **20 種各式圖表範例**：
 
-## 1. 流程圖 (Flowchart)
+## 流程圖範例 (Flowchart)
 \`\`\`mermaid
 graph TD
     A[人事室] -->|處理加班費| B(差勤系統)
@@ -249,274 +233,24 @@ graph TD
     C -->|勤勤| F[手動查核]
 \`\`\`
 
-## 2. 循序圖 (Sequence Diagram)
+## 循序圖範例 (Sequence Diagram)
 \`\`\`mermaid
 sequenceDiagram
     participant 貴貴
     participant 慧慧
     貴貴 ->>+ 慧慧: Hello 慧慧, how are you?
-    貴貴 ->> 慧慧: 慧慧, can you hear me?
-    慧慧 -->> 貴貴: Hi 貴貴, I can hear you!
     慧慧 -->>- 貴貴: I feel great!
-\`\`\`
+\`\`\``;
 
-## 3. 類別圖 (Class Diagram)
-\`\`\`mermaid
-classDiagram
-    Animal <|-- Duck
-    Animal <|-- Fish
-    Animal <|-- Zebra
-    Animal : +int age
-    Animal : +String gender
-    Animal: +isMammal()
-    Animal: +mate()
-    class Duck{
-        +String beakColor
-        +swim()
-        +quack()
-    }
-    class Fish{
-        -int sizeInFeet
-        -canEat()
-    }
-    class Zebra{
-        +bool is_wild
-        +run()
-    }
-\`\`\`
-
-## 4. 狀態圖 (State Diagram)
-\`\`\`mermaid
-stateDiagram-v2
-    [*] --> Still
-    Still --> [*]
-    Still --> Moving
-    Moving --> Still
-    Moving --> Crash
-    Crash --> [*]
-\`\`\`
-
-## 5. 實體關聯圖 (Entity Relationship Diagram)
-\`\`\`mermaid
-erDiagram
-    CUSTOMER ||--o{ ORDER : places
-    ORDER ||--|{ LINE-ITEM : contains
-    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses
-\`\`\`
-
-## 6. 使用者旅程圖 (User Journey)
-\`\`\`mermaid
-journey
-    title My working day
-    section Go to work
-      Make tea: 5: Leno
-      Go upstairs: 3: Leno
-      Do work: 1: Leno, 貴貴
-    section Go home
-      Go downstairs: 5: Leno
-      Sit down: 5: Leno
-\`\`\`
-
-## 7. 甘特圖 (Gantt Chart)
-\`\`\`mermaid
-gantt
-    title A Gantt Diagram
-    dateFormat  YYYY-MM-DD
-    section Section
-    A task           :a1, 2014-01-01, 30d
-    Another task     :after a1  , 20d
-    section Another
-    Task in sec      :2014-01-12  , 12d
-    another task     : 24d
-\`\`\`
-
-## 8. 圓餅圖 (Pie Chart)
-\`\`\`mermaid
-pie title Pets adopted by volunteers
-    "Dogs" : 386
-    "Cats" : 85
-    "Rats" : 15
-\`\`\`
-
-## 9. 象限圖 (Quadrant Chart)
-\`\`\`mermaid
-quadrantChart
-    title Reach and engagement of campaigns
-    x-axis Low Reach --> High Reach
-    y-axis Low Engagement --> High Engagement
-    quadrant-1 We should expand
-    quadrant-2 Need to promote
-    quadrant-3 Re-evaluate
-    quadrant-4 May be improved
-    Campaign A: [0.3, 0.6]
-    Campaign B: [0.45, 0.23]
-    Campaign C: [0.57, 0.69]
-    Campaign D: [0.78, 0.34]
-    Campaign E: [0.40, 0.34]
-    Campaign F: [0.35, 0.78]
-\`\`\`
-
-## 10. 需求圖 (Requirement Diagram)
-\`\`\`mermaid
-requirementDiagram
-
-requirement test_req {
-id: 1
-text: the test text.
-risk: high
-verifymethod: test
-}
-
-element test_entity {
-type: simulation
-}
-
-test_entity - satisfies -> test_req
-\`\`\`
-
-## 11. Git 圖 (Gitgraph)
-\`\`\`mermaid
-gitGraph
-    commit
-    commit
-    branch develop
-    checkout develop
-    commit
-    commit
-    checkout main
-    merge develop
-    commit
-    commit
-\`\`\`
-
-## 12. C4 架構圖 (C4 Diagram)
-\`\`\`mermaid
-C4Context
-    title System Context diagram for Internet Banking System
-    Person(customerA, "Banking Customer A", "A customer of the bank, with personal bank accounts.")
-    Person(customerB, "Banking Customer B")
-    Person_Ext(customerC, "Banking Customer C", "desc")
-    Enterprise_Boundary(b0, "BankBoundary") {
-      System(SystemAA, "Internet Banking System", "Allows customers to view information about their bank accounts, and make payments.")
-    }
-    Rel(customerA, SystemAA, "Uses")
-\`\`\`
-
-## 13. 心智圖 (Mindmap)
-\`\`\`mermaid
-mindmap
-  root((mindmap))
-    Origins
-      Long history
-      ::icon(fa fa-book)
-      Popularisation
-        British popular psychology author Tony Buzan
-    Research
-      On effectiveness<br/>and features
-      On Automatic creation
-        Uses
-            Creative techniques
-            Strategic planning
-            Argument mapping
-    Tools
-      Pen and paper
-      Mermaid
-\`\`\`
-
-## 14. 時間軸 (Timeline)
-\`\`\`mermaid
-timeline
-    title History of Social Media Platform
-    2002 : LinkedIn
-    2004 : Facebook
-         : Google
-    2005 : Youtube
-    2006 : Twitter
-\`\`\`
-
-## 15. 桑基圖 (Sankey Diagram)
-\`\`\`mermaid
-sankey-beta
-Agricultural 'waste',Bio-conversion,124.729
-Bio-conversion,Liquid,0.597
-Bio-conversion,Solid,26.862
-\`\`\`
-
-## 16. XY 座標圖 (XYChart)
-\`\`\`mermaid
-xychart-beta
-    title "Sales Revenue"
-    x-axis [jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec]
-    y-axis "Revenue (in $)" 4000 --> 11000
-    bar [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
-    line [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000]
-\`\`\`
-
-## 17. 區塊圖 (Block Diagram)
-\`\`\`mermaid
-block-beta
-  columns 3
-  A["Node A"]
-  B["Node B"]
-  C["Node C"]
-  block:group1:2
-    D["Node D"]
-    E["Node E"]
-  end
-  F["Node F"]
-\`\`\`
-
-## 18. 封包圖 (Packet Diagram)
-\`\`\`mermaid
-packet-beta
-  title Packet Diagram
-  0-15: "Source Port"
-  16-31: "Destination Port"
-  32-63: "Sequence Number"
-  64-95: "Acknowledgment Number"
-\`\`\`
-
-## 19. 系統架構圖 (Architecture)
-\`\`\`mermaid
-architecture-beta
-    group api(cloud)[API]
-    service db(database)[Database] in api
-    service disk(disk)[Storage] in api
-    db:L -- R:disk
-\`\`\`
-
-## 20. 看板 (Kanban)
-\`\`\`mermaid
-kanban
-  Todo
-    [Create documentation]
-  In Progress
-    [Implement new charts]
-  Done
-    [Fix bugs]
-\`\`\`
-
----
-*提示：您可以試著修改左側的程式碼，右側會即時更新喔！*`;
-
-        // 將預設內容填入編輯器
-        editor.value = defaultContent;
-
-        // 負責將 Markdown 轉為 HTML 並渲染 Mermaid 圖表的函數
+        // --- 渲染與自動存檔 ---
         async function renderContent() {
-            // 自動清理可能導致 Mermaid 排版引擎崩潰的不中斷空白 (NBSP, \u00A0)
             const markdownText = editor.value.replace(/\u00A0/g, ' ');
-            
-            // 1. 使用 Marked.js 將 Markdown 轉換為 HTML
             preview.innerHTML = marked.parse(markdownText);
 
-            // 2. 找出所有被標記為 language-mermaid 的 code 區塊
             const mermaidCodeBlocks = preview.querySelectorAll('code.language-mermaid');
             
-            // 3. 將這些 code 區塊轉換為帶有外框與工具列空間的容器
             mermaidCodeBlocks.forEach(block => {
                 const preElement = block.parentElement; 
-                
                 const mermaidContainer = document.createElement('div');
                 mermaidContainer.className = 'group relative my-6 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors pt-10 pb-4 px-4';
                 
@@ -528,13 +262,11 @@ kanban
                 preElement.replaceWith(mermaidContainer);
             });
 
-            // 4. 呼叫 Mermaid 進行渲染
             try {
                 const nodesToRender = document.querySelectorAll('.mermaid');
                 if (nodesToRender.length > 0) {
                     await mermaid.run({ nodes: nodesToRender });
                     
-                    // 5. 渲染完成後，為每個圖表加入放大、縮小、下載工具列
                     document.querySelectorAll('.group.relative').forEach((container, index) => {
                         const svg = container.querySelector('svg');
                         if (!svg) return;
@@ -547,62 +279,41 @@ kanban
                         svg.style.height = 'auto';
                         svg.style.transition = 'width 0.2s ease';
 
-                        // 建立懸浮工具列
                         const toolbar = document.createElement('div');
                         toolbar.className = 'absolute top-2 right-2 flex gap-1 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10';
-                        
-                        // 工具列按鈕加大 padding（觸控更友善）
                         const btnClass = 'p-2.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors';
 
-                        // 🔍 放大按鈕
                         const zoomInBtn = document.createElement('button');
                         zoomInBtn.className = btnClass;
-                        zoomInBtn.title = '放大';
                         zoomInBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-                        zoomInBtn.onclick = () => {
-                            currentWidth *= 1.25; 
-                            svg.style.width = `${currentWidth}px`;
-                        };
+                        zoomInBtn.onclick = () => { currentWidth *= 1.25; svg.style.width = `${currentWidth}px`; };
 
-                        // 🔍 縮小按鈕
                         const zoomOutBtn = document.createElement('button');
                         zoomOutBtn.className = btnClass;
-                        zoomOutBtn.title = '縮小';
                         zoomOutBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
-                        zoomOutBtn.onclick = () => {
-                            currentWidth /= 1.25; 
-                            svg.style.width = `${currentWidth}px`;
-                        };
+                        zoomOutBtn.onclick = () => { currentWidth /= 1.25; svg.style.width = `${currentWidth}px`; };
 
-                        // 💾 下載 SVG 按鈕
                         const downloadBtn = document.createElement('button');
                         downloadBtn.className = btnClass;
-                        downloadBtn.title = '下載 SVG';
                         downloadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
                         downloadBtn.onclick = () => {
                             const cloneSvg = svg.cloneNode(true);
                             cloneSvg.style.width = '100%';
                             cloneSvg.style.height = '100%';
-                            
                             const svgData = new XMLSerializer().serializeToString(cloneSvg);
                             const preface = '<?xml version="1.0" standalone="no"?>\r\n';
                             const blob = new Blob([preface, svgData], { type: 'image/svg+xml;charset=utf-8' });
                             const url = URL.createObjectURL(blob);
-                            
                             const a = document.createElement('a');
                             a.href = url;
                             a.download = `mermaid-chart-${index + 1}.svg`;
-                            document.body.appendChild(a);
                             a.click();
-                            
-                            document.body.removeChild(a);
                             URL.revokeObjectURL(url);
                         };
 
                         toolbar.appendChild(zoomInBtn);
                         toolbar.appendChild(zoomOutBtn);
                         toolbar.appendChild(downloadBtn);
-                        
                         container.appendChild(toolbar);
                     });
                 }
@@ -611,22 +322,40 @@ kanban
             }
         }
 
-        // 防抖動 (Debounce) 機制
+        // 防抖動 (Debounce) 機制 + 自動存檔
         let renderTimeout;
+        let saveStatusTimeout;
         editor.addEventListener('input', () => {
             clearTimeout(renderTimeout);
-            renderTimeout = setTimeout(renderContent, 300);
+            renderTimeout = setTimeout(() => {
+                renderContent();
+                // 儲存至 localStorage
+                localStorage.setItem(STORAGE_KEY, editor.value);
+                // 顯示存檔狀態
+                saveStatus.classList.remove('opacity-0');
+                clearTimeout(saveStatusTimeout);
+                saveStatusTimeout = setTimeout(() => {
+                    saveStatus.classList.add('opacity-0');
+                }, 2000);
+            }, 300);
         });
 
         clearBtn.addEventListener('click', () => {
             if (confirm('確定要清空所有內容嗎？')) {
                 editor.value = '';
+                localStorage.removeItem(STORAGE_KEY);
                 renderContent();
                 editor.focus();
             }
         });
 
-        // 初始載入時先渲染一次
+        // 初始啟動：讀取暫存或預設值
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData !== null) {
+            editor.value = savedData;
+        } else {
+            editor.value = defaultContent;
+        }
         renderContent();
     </script>
 </body>
